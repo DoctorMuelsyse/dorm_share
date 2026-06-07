@@ -1,36 +1,40 @@
-name: CI
+name: Deploy to GitHub Pages
 
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
-  lint-and-validate:
+  deploy:
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Prepare frontend files
+        run: |
+          mkdir -p _site
+          cp -r frontend/* _site/
+          ls -la _site/
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          python-version: '3.10'
+          path: _site
 
-      - name: Install dependencies
-        run: |
-          cd backend
-          pip install flask flask-cors pymysql
-
-      - name: Check Python syntax
-        run: |
-          python -m py_compile backend/app.py
-          python -m py_compile backend/db_config.py
-
-      - name: Check frontend files exist
-        run: |
-          for f in login.html dashboard.html profile.html my-items.html my-orders.html favorites.html admin-orders.html admin-users.html; do
-            test -f "frontend/$f" && echo "✓ $f exists" || echo "✗ $f missing"
-          done
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
