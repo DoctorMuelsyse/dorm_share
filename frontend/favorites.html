@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>我的收藏 - 宿舍好物共享系统</title>
+    <script src="config.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Microsoft YaHei', sans-serif; background: #f5f7fa; }
@@ -47,7 +48,6 @@
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:5000/api';
         let currentUser = null;
 
         document.addEventListener('DOMContentLoaded', () => {

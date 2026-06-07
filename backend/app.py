@@ -6,16 +6,7 @@ from datetime import datetime
 app = Flask(__name__)
 CORS(app)
 
-# 数据库连接配置
-def get_db_connection():
-    connection = pymysql.connect(
-        host='localhost',
-        user='root',           # 你的MySQL用户名
-        password='123456',     # 你的MySQL密码
-        database='dorm_share',
-        cursorclass=pymysql.cursors.DictCursor
-    )
-    return connection
+from db_config import get_db_connection
 
 
 # ==================== 用户管理API ====================

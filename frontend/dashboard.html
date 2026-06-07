@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>首页 - 宿舍好物共享系统</title>
+    <script src="config.js"></script>
     <style>
         * {
             margin: 0;
@@ -303,7 +304,6 @@
     <div id="message" class="message"></div>
 
     <script>
-        const API_BASE = 'http://localhost:5000/api';
         let currentUser = null;
         let favoriteIds = new Set();  // 存储已收藏的物品ID
 

@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Deploy Frontend + Backend
 
 on:
   push:
@@ -14,8 +14,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  deploy-frontend:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     
     steps:
       - name: Checkout code
