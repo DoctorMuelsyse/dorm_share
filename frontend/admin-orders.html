@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>管理员 - 租借管理</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: #f5f7fa;
+        }
+        .navbar {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-size: 20px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .nav-links a {
+            margin: 0 15px;
+            text-decoration: none;
+            color: #333;
+        }
+        .nav-links a:hover {
+            color: #667eea;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .credit-score {
+            background: #667eea;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        .logout-btn {
+            background: none;
+            border: 1px solid #ddd;
+            padding: 5px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px;
+        }
+        .section-title {
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tab-btn {
+            padding: 10px 20px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .tab-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        table {
+            width: 100%;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #667eea;
+            color: white;
+        }
+        .status-borrowing {
+            color: orange;
+            font-weight: bold;
+        }
+        .status-returned {
+            color: green;
+            font-weight: bold;
+        }
+        .status-cancelled {
+            color: red;
+        }
+        .search-box {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        .search-box input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .search-box button {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 10px;
+        }
+        .stat-number {
+            font-size: 28px;
+            font-weight: bold;
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="logo">宿舍好物共享租借系统 - 管理员</div>
+        <div class="nav-links">
+            <a href="admin-orders.html">租借管理</a>
+            <a href="admin-users.html">用户管理</a>
+        </div>
+        <div class="user-info">
+            <span id="userName"></span>
+            <span class="credit-score" id="creditScore"></span>
+            <button class="logout-btn" onclick="logout()">退出</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 统计卡片 -->
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="totalOrders">-</div>
+                <div>总订单数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="activeOrders">-</div>
+                <div>进行中租借</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="overdueOrders">-</div>
+                <div>逾期未还</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalUsers">-</div>
+                <div>总用户数</div>
+            </div>
+        </div>
+
+        <!-- 搜索 -->
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="搜索物品名称或借用人..." onkeypress="handleKeyPress(event)">
+            <button onclick="searchOrders()">搜索</button>
+        </div>
+
+        <!-- 标签页 -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('all')">全部订单</button>
+            <button class="tab-btn" onclick="switchTab('borrowing')">进行中</button>
+            <button class="tab-btn" onclick="switchTab('overdue')">逾期未还</button>
+            <button class="tab-btn" onclick="switchTab('returned')">已归还</button>
+        </div>
+
+        <!-- 订单表格 -->
+        <table>
+            <thead>
+                <tr>
+                    <th>订单号</th>
+                    <th>物品名称</th>
+                    <th>借用人</th>
+                    <th>物主</th>
+                    <th>借出日期</th>
+                    <th>应还日期</th>
+                    <th>实际归还</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="ordersBody">
+                <tr><td colspan="9" style="text-align:center;">加载中...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        let currentUser = null;
+        let currentFilter = 'all';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const userStr = localStorage.getItem('user');
+            if (!userStr) {
+                window.location.href = 'login.html';
+                return;
+            }
+            currentUser = JSON.parse(userStr);
+            
+            // 检查是否为管理员
+            if (currentUser.role !== 'admin') {
+                alert('您不是管理员，无法访问此页面');
+                window.location.href = 'dashboard.html';
+                return;
+            }
+            
+            document.getElementById('userName').textContent = currentUser.name + ' (管理员)';
+            document.getElementById('creditScore').textContent = `信用分 ${currentUser.credit_score}`;
+            
+            loadStats();
+            loadOrders();
+        });
+
+        async function loadStats() {
+            try {
+                const response = await fetch(`${API_BASE}/admin/stats`);
+                const result = await response.json();
+                if (result.code === 200) {
+                    document.getElementById('totalOrders').textContent = result.data.total_orders;
+                    document.getElementById('activeOrders').textContent = result.data.active_orders;
+                    document.getElementById('overdueOrders').textContent = result.data.overdue_orders;
+                    document.getElementById('totalUsers').textContent = result.data.total_users;
+                }
+            } catch (error) {
+                console.error('加载统计失败:', error);
+            }
+        }
+
+        async function loadOrders() {
+            try {
+                let url = `${API_BASE}/admin/orders`;
+                if (currentFilter === 'borrowing') {
+                    url = `${API_BASE}/admin/orders?status=borrowing`;
+                } else if (currentFilter === 'returned') {
+                    url = `${API_BASE}/admin/orders?status=returned`;
+                } else if (currentFilter === 'overdue') {
+                    url = `${API_BASE}/admin/orders?status=overdue`;
+                }
+                
+                const response = await fetch(url);
+                const result = await response.json();
+                if (result.code === 200) {
+                    renderOrders(result.data);
+                }
+            } catch (error) {
+                console.error('加载订单失败:', error);
+                document.getElementById('ordersBody').innerHTML = '<tr><td colspan="9" style="text-align:center;">加载失败</td></tr>';
+            }
+        }
+
+        async function searchOrders() {
+            const keyword = document.getElementById('searchInput').value;
+            if (!keyword.trim()) {
+                loadOrders();
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/admin/orders/search?keyword=${encodeURIComponent(keyword)}`);
+                const result = await response.json();
+                if (result.code === 200) {
+                    renderOrders(result.data);
+                }
+            } catch (error) {
+                console.error('搜索失败:', error);
+            }
+        }
+
+        function renderOrders(orders) {
+            const tbody = document.getElementById('ordersBody');
+            
+            if (!orders || orders.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">暂无订单</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = orders.map(order => {
+                const borrowDate = order.borrow_date ? new Date(order.borrow_date).toLocaleDateString() : '-';
+                const dueDate = order.due_date ? new Date(order.due_date).toLocaleDateString() : '-';
+                const returnDate = order.actual_return_date ? new Date(order.actual_return_date).toLocaleDateString() : '-';
+                
+                let statusText = '';
+                let statusClass = '';
+                if (order.order_status === 'borrowing') {
+                    statusText = '租借中';
+                    statusClass = 'status-borrowing';
+                } else if (order.order_status === 'returned') {
+                    statusText = '已归还';
+                    statusClass = 'status-returned';
+                } else if (order.order_status === 'cancelled') {
+                    statusText = '已取消';
+                    statusClass = 'status-cancelled';
+                }
+                
+                let actionButton = '';
+                if (order.order_status === 'borrowing') {
+                    actionButton = `<button class="return-btn" onclick="forceReturn(${order.order_id})">强制归还</button>`;
+                }
+                
+                return `
+                    <tr>
+                        <td>${order.order_id}</td>
+                        <td>${order.item_name}</td>
+                        <td>${order.borrower_name}</td>
+                        <td>${order.owner_name}</td>
+                        <td>${borrowDate}</td>
+                        <td>${dueDate}</td>
+                        <td>${returnDate}</td>
+                        <td class="${statusClass}">${statusText}</td>
+                        <td>${actionButton}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function forceReturn(orderId) {
+            if (!confirm('确认强制归还这件物品吗？')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/admin/orders/${orderId}/force-return`, {
+                    method: 'PUT'
+                });
+                const result = await response.json();
+                if (result.code === 200) {
+                    alert('归还成功');
+                    loadStats();
+                    loadOrders();
+                } else {
+                    alert('归还失败：' + result.message);
+                }
+            } catch (error) {
+                alert('网络错误');
+            }
+        }
+
+        function switchTab(tab) {
+            currentFilter = tab;
+            document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            loadOrders();
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                searchOrders();
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+</html>

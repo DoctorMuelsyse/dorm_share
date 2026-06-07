@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>管理员 - 用户管理</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: #f5f7fa;
+        }
+        .navbar {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-size: 20px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .nav-links a {
+            margin: 0 15px;
+            text-decoration: none;
+            color: #333;
+        }
+        .nav-links a:hover {
+            color: #667eea;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .credit-score {
+            background: #667eea;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        .logout-btn {
+            background: none;
+            border: 1px solid #ddd;
+            padding: 5px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px;
+        }
+        .section-title {
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+        .search-box {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        .search-box input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .search-box button {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        table {
+            width: 100%;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #667eea;
+            color: white;
+        }
+        .edit-btn {
+            background: #f39c12;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-right: 5px;
+        }
+        .delete-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #999;
+        }
+        .message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 5px;
+            z-index: 1000;
+            display: none;
+        }
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="logo">宿舍好物共享租借系统 - 管理员</div>
+        <div class="nav-links">
+            <a href="admin-orders.html">租借管理</a>
+            <a href="admin-users.html">用户管理</a>
+        </div>
+        <div class="user-info">
+            <span id="userName"></span>
+            <span class="credit-score" id="creditScore"></span>
+            <button class="logout-btn" onclick="logout()">退出</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="section-title">用户管理</div>
+        
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="搜索学号或姓名..." onkeypress="handleKeyPress(event)">
+            <button onclick="searchUsers()">搜索</button>
+        </div>
+
+        <div id="message" class="message"></div>
+
+        <table id="userTable">
+            <thead>
+                <tr>
+                    <th>学号</th>
+                    <th>姓名</th>
+                    <th>宿舍楼</th>
+                    <th>房间号</th>
+                    <th>电话</th>
+                    <th>信用分</th>
+                    <th>角色</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="usersBody">
+                <tr><td colspan="8" class="loading">加载中...</td><tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        let currentUser = null;
+
+        // 页面加载
+        document.addEventListener('DOMContentLoaded', () => {
+            const userStr = localStorage.getItem('user');
+            if (!userStr) {
+                window.location.href = 'login.html';
+                return;
+            }
+            currentUser = JSON.parse(userStr);
+            
+            // 检查是否为管理员
+            if (currentUser.role !== 'admin') {
+                showMessage('您不是管理员，无法访问此页面', 'error');
+                setTimeout(() => {
+                    window.location.href = 'dashboard.html';
+                }, 2000);
+                return;
+            }
+            
+            document.getElementById('userName').textContent = currentUser.name + ' (管理员)';
+            document.getElementById('creditScore').textContent = `信用分 ${currentUser.credit_score}`;
+            
+            loadUsers();
+        });
+
+        // 显示消息
+        function showMessage(msg, type) {
+            const msgDiv = document.getElementById('message');
+            msgDiv.textContent = msg;
+            msgDiv.className = `message ${type}`;
+            msgDiv.style.display = 'block';
+            setTimeout(() => {
+                msgDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        // 加载用户列表
+        async function loadUsers() {
+            try {
+                const response = await fetch(`${API_BASE}/admin/users`);
+                const result = await response.json();
+                
+                if (result.code === 200) {
+                    renderUsers(result.data);
+                } else {
+                    document.getElementById('usersBody').innerHTML = '<tr><td colspan="8" class="loading">加载失败</td></tr>';
+                }
+            } catch (error) {
+                console.error('加载用户失败:', error);
+                document.getElementById('usersBody').innerHTML = '<tr><td colspan="8" class="loading">网络错误，请确保后端已启动</td></tr>';
+            }
+        }
+
+        // 搜索用户
+        async function searchUsers() {
+            const keyword = document.getElementById('searchInput').value;
+            if (!keyword.trim()) {
+                loadUsers();
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/admin/users/search?keyword=${encodeURIComponent(keyword)}`);
+                const result = await response.json();
+                if (result.code === 200) {
+                    renderUsers(result.data);
+                }
+            } catch (error) {
+                console.error('搜索失败:', error);
+            }
+        }
+
+        // 渲染用户表格
+        function renderUsers(users) {
+            const tbody = document.getElementById('usersBody');
+            
+            if (!users || users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="loading">暂无用户</td></tr>';
+                return;
+            }
+            
+            let html = '';
+            for (let i = 0; i < users.length; i++) {
+                const user = users[i];
+                // 不能删除管理员自己
+                const isSelf = user.user_id === currentUser.user_id;
+                html += `
+                    <tr>
+                        <td>${escapeHtml(user.user_id)}</td>
+                        <td>${escapeHtml(user.name)}</td>
+                        <td>${escapeHtml(user.dorm_building || '-')}</td>
+                        <td>${escapeHtml(user.dorm_room || '-')}</td>
+                        <td>${escapeHtml(user.phone || '-')}</td>
+                        <td>${user.credit_score}</td>
+                        <td>${user.role === 'admin' ? '管理员' : '学生'}</td>
+                        <td>
+                            ${user.role !== 'admin' ? `<button class="edit-btn" onclick="editCredit('${user.user_id}', ${user.credit_score})">修改信用分</button>` : ''}
+                            ${user.role !== 'admin' && !isSelf ? `<button class="delete-btn" onclick="deleteUser('${user.user_id}')">删除</button>` : ''}
+                        </td>
+                    </tr>
+                `;
+            }
+            tbody.innerHTML = html;
+        }
+
+        // 防XSS攻击
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 修改信用分
+        async function editCredit(userId, currentCredit) {
+            const newCredit = prompt('请输入新的信用分（0-100）：', currentCredit);
+            if (newCredit === null) return;
+            
+            const creditNum = parseInt(newCredit);
+            if (isNaN(creditNum) || creditNum < 0 || creditNum > 100) {
+                showMessage('信用分必须在0-100之间', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/admin/user/${userId}/credit`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ credit_score: creditNum })
+                });
+                const result = await response.json();
+                if (result.code === 200) {
+                    showMessage('修改成功', 'success');
+                    loadUsers();
+                } else {
+                    showMessage('修改失败：' + result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('网络错误', 'error');
+            }
+        }
+
+        // 删除用户
+        async function deleteUser(userId) {
+            if (!confirm(`确定要删除用户 ${userId} 吗？该用户的所有数据将被删除。`)) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/admin/user/${userId}`, {
+                    method: 'DELETE'
+                });
+                const result = await response.json();
+                if (result.code === 200) {
+                    showMessage('删除成功', 'success');
+                    loadUsers();
+                } else {
+                    showMessage('删除失败：' + result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('网络错误', 'error');
+            }
+        }
+
+        // 回车搜索
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                searchUsers();
+            }
+        }
+
+        // 退出登录
+        function logout() {
+            if (confirm('确定退出登录吗？')) {
+                localStorage.removeItem('user');
+                window.location.href = 'login.html';
+            }
+        }
+    </script>
+</body>
+</html>

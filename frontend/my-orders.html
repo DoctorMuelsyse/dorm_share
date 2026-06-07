@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>我的订单 - 宿舍好物共享系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: #f5f7fa;
+        }
+        .navbar {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-size: 20px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .nav-links a {
+            margin: 0 15px;
+            text-decoration: none;
+            color: #333;
+        }
+        .nav-links a:hover {
+            color: #667eea;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .credit-score {
+            background: #667eea;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        .logout-btn {
+            background: none;
+            border: 1px solid #ddd;
+            padding: 5px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px;
+        }
+        .section-title {
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #667eea;
+            color: white;
+        }
+        .status-borrowing {
+            color: orange;
+            font-weight: bold;
+        }
+        .status-returned {
+            color: green;
+            font-weight: bold;
+        }
+        .return-btn {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 5px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .return-btn:hover {
+            background: #219a52;
+        }
+        .message {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="logo">宿舍好物共享租借系统</div>
+        <div class="nav-links">
+            <a href="dashboard.html">首页</a>
+            <a href="my-items.html">我的物品</a>
+            <a href="my-orders.html">我的订单</a>
+            <a href="favorites.html">我的收藏</a>
+            <a href="profile.html">个人中心</a>
+        </div>
+        <div class="user-info">
+            <span id="userName"></span>
+            <span class="credit-score" id="creditScore"></span>
+            <button class="logout-btn" onclick="logout()">退出</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="section-title">我的订单</div>
+        <div id="message" class="message"></div>
+        <table id="ordersTable">
+            <thead>
+                <tr><th>物品名称</th><th>借出日期</th><th>应还日期</th><th>状态</th><th>操作</th</tr>
+            </thead>
+            <tbody id="ordersBody">
+                <tr><td colspan="5" style="text-align:center;">加载中...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        let currentUser = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const userStr = localStorage.getItem('user');
+            if (!userStr) {
+                window.location.href = 'login.html';
+                return;
+            }
+            currentUser = JSON.parse(userStr);
+            document.getElementById('userName').textContent = currentUser.name;
+            document.getElementById('creditScore').textContent = `信用分 ${currentUser.credit_score}`;
+            loadOrders();
+        });
+
+        async function loadOrders() {
+            try {
+                const response = await fetch(`${API_BASE}/my-orders/${currentUser.user_id}`);
+                const result = await response.json();
+                
+                if (result.code === 200) {
+                    renderOrders(result.data);
+                } else {
+                    document.getElementById('ordersBody').innerHTML = '<tr><td colspan="5" style="text-align:center;">加载失败</td></tr>';
+                }
+            } catch (error) {
+                console.error('加载订单失败:', error);
+                document.getElementById('ordersBody').innerHTML = '<tr><td colspan="5" style="text-align:center;">网络错误</td></tr>';
+            }
+        }
+
+        function renderOrders(orders) {
+            const tbody = document.getElementById('ordersBody');
+            
+            if (!orders || orders.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">暂无订单</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = orders.map(order => {
+                // 格式化日期
+                const borrowDate = order.borrow_date ? new Date(order.borrow_date).toLocaleDateString() : '-';
+                const dueDate = order.due_date ? new Date(order.due_date).toLocaleDateString() : '-';
+                
+                // 状态显示
+                let statusText = '';
+                let statusClass = '';
+                if (order.order_status === 'borrowing') {
+                    statusText = '租借中';
+                    statusClass = 'status-borrowing';
+                } else if (order.order_status === 'returned') {
+                    statusText = '已归还';
+                    statusClass = 'status-returned';
+                } else if (order.order_status === 'cancelled') {
+                    statusText = '已取消';
+                    statusClass = '';
+                } else {
+                    statusText = order.order_status;
+                    statusClass = '';
+                }
+                
+                // 操作按钮
+                let actionButton = '';
+                if (order.order_status === 'borrowing') {
+                    actionButton = `<button class="return-btn" onclick="returnOrder(${order.order_id})">归还</button>`;
+                } else if (order.order_status === 'returned') {
+                    actionButton = '<span style="color:green;">已完成</span>';
+                } else if (order.order_status === 'cancelled') {
+                    actionButton = '<span style="color:gray;">已取消</span>';
+                }
+                
+                return `
+                    <tr>
+                        <td>${order.name}</td>
+                        <td>${borrowDate}</td>
+                        <td>${dueDate}</td>
+                        <td class="${statusClass}">${statusText}</td>
+                        <td>${actionButton}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function returnOrder(orderId) {
+            if (!confirm('确认归还这件物品吗？')) {
+                return;
+            }
+            
+            const messageDiv = document.getElementById('message');
+            
+            try {
+                const response = await fetch(`${API_BASE}/orders/${orderId}/return`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const result = await response.json();
+                
+                if (result.code === 200) {
+                    messageDiv.className = 'message success';
+                    messageDiv.textContent = '✅ 归还成功！';
+                    messageDiv.style.display = 'block';
+                    
+                    // 重新加载订单列表
+                    setTimeout(() => {
+                        loadOrders();
+                        messageDiv.style.display = 'none';
+                    }, 1000);
+                } else {
+                    messageDiv.className = 'message error';
+                    messageDiv.textContent = '❌ 归还失败：' + (result.message || '未知错误');
+                    messageDiv.style.display = 'block';
+                    setTimeout(() => {
+                        messageDiv.style.display = 'none';
+                    }, 3000);
+                }
+            } catch (error) {
+                console.error('归还失败:', error);
+                messageDiv.className = 'message error';
+                messageDiv.textContent = '❌ 网络错误，请确保后端已启动';
+                messageDiv.style.display = 'block';
+                setTimeout(() => {
+                    messageDiv.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        function logout() {
+            if (confirm('确定退出登录吗？')) {
+                localStorage.removeItem('user');
+                window.location.href = 'login.html';
+            }
+        }
+    </script>
+</body>
+</html>

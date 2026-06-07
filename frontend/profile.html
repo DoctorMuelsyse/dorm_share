@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>个人中心 - 宿舍好物共享系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', sans-serif; background: #f5f7fa; }
+        .navbar {
+            background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px 30px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .logo { font-size: 20px; font-weight: bold; color: #667eea; }
+        .nav-links a { margin: 0 15px; text-decoration: none; color: #333; }
+        .nav-links a:hover { color: #667eea; }
+        .user-info { display: flex; align-items: center; gap: 15px; }
+        .credit-score { background: #667eea; color: white; padding: 5px 12px; border-radius: 20px; }
+        .logout-btn { background: none; border: 1px solid #ddd; padding: 5px 15px; border-radius: 5px; cursor: pointer; }
+        .container { max-width: 800px; margin: 0 auto; padding: 30px; }
+        .card { background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .info-row { display: flex; margin-bottom: 15px; }
+        .info-label { width: 100px; color: #666; }
+        .info-value { flex: 1; }
+        .edit-btn { background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+        .rank-list { margin-top: 20px; }
+        .rank-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="logo">宿舍好物共享租借系统</div>
+        <div class="nav-links">
+            <a href="dashboard.html">首页</a>
+            <a href="my-items.html">我的物品</a>
+            <a href="my-orders.html">我的订单</a>
+            <a href="favorites.html">我的收藏</a>
+            <a href="profile.html">个人中心</a>
+        </div>
+        <div class="user-info">
+            <span id="userName"></span>
+            <span class="credit-score" id="creditScore"></span>
+            <button class="logout-btn" onclick="logout()">退出</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h3>个人信息</h3>
+            <div class="info-row"><div class="info-label">学号：</div><div class="info-value" id="userId"></div></div>
+            <div class="info-row"><div class="info-label">姓名：</div><div class="info-value" id="userNameInfo"></div></div>
+            <div class="info-row"><div class="info-label">宿舍楼：</div><div class="info-value" id="dormBuilding"></div></div>
+            <div class="info-row"><div class="info-label">房间号：</div><div class="info-value" id="dormRoom"></div></div>
+            <div class="info-row"><div class="info-label">电话：</div><div class="info-value" id="phone"></div></div>
+            <div class="info-row"><div class="info-label">信用分：</div><div class="info-value" id="creditScoreInfo"></div></div>
+            <button class="edit-btn" onclick="editProfile()">编辑资料</button>
+        </div>
+
+        <div class="card">
+            <h3>信用分排行榜</h3>
+            <div class="rank-list" id="rankList"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        let currentUser = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const userStr = localStorage.getItem('user');
+            if (!userStr) { window.location.href = 'login.html'; return; }
+            currentUser = JSON.parse(userStr);
+            document.getElementById('userName').textContent = currentUser.name;
+            document.getElementById('creditScore').textContent = `信用分 ${currentUser.credit_score}`;
+            loadProfile();
+            loadRank();
+        });
+
+        async function loadProfile() {
+            const response = await fetch(`${API_BASE}/user/${currentUser.user_id}`);
+            const result = await response.json();
+            if (result.code === 200) {
+                document.getElementById('userId').textContent = result.data.user_id;
+                document.getElementById('userNameInfo').textContent = result.data.name;
+                document.getElementById('dormBuilding').textContent = result.data.dorm_building;
+                document.getElementById('dormRoom').textContent = result.data.dorm_room;
+                document.getElementById('phone').textContent = result.data.phone;
+                document.getElementById('creditScoreInfo').textContent = result.data.credit_score;
+            }
+        }
+
+        async function loadRank() {
+            const response = await fetch(`${API_BASE}/credit-rank`);
+            const result = await response.json();
+            if (result.code === 200) {
+                const rankDiv = document.getElementById('rankList');
+                rankDiv.innerHTML = result.data.map((u, i) => `
+                    <div class="rank-item">
+                        <span>${i+1}. ${u.name}</span>
+                        <span>${u.dorm_building}</span>
+                        <span style="color:#667eea">${u.credit_score}分</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function editProfile() {
+            const newPhone = prompt('请输入新手机号：', document.getElementById('phone').textContent);
+            const newRoom = prompt('请输入新房间号：', document.getElementById('dormRoom').textContent);
+            if (newPhone) {
+                fetch(`${API_BASE}/user/${currentUser.user_id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone: newPhone, dorm_room: newRoom })
+                }).then(() => loadProfile());
+            }
+        }
+
+        function logout() { localStorage.removeItem('user'); window.location.href = 'login.html'; }
+    </script>
+</body>
+</html>

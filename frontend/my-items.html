@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>我的物品 - 宿舍好物共享系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: #f5f7fa;
+        }
+        .navbar {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-size: 20px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .nav-links a {
+            margin: 0 15px;
+            text-decoration: none;
+            color: #333;
+        }
+        .nav-links a:hover {
+            color: #667eea;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .credit-score {
+            background: #667eea;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        .logout-btn {
+            background: none;
+            border: 1px solid #ddd;
+            padding: 5px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px;
+        }
+        .section-title {
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+        .add-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #667eea;
+            color: white;
+        }
+        .status-available {
+            color: green;
+        }
+        .status-borrowed {
+            color: orange;
+        }
+        .status-offline {
+            color: red;
+        }
+        .offline-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            width: 400px;
+        }
+        .modal-content input, .modal-content textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .modal-content button {
+            padding: 10px 20px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="logo">宿舍好物共享租借系统</div>
+        <div class="nav-links">
+            <a href="dashboard.html">首页</a>
+            <a href="my-items.html">我的物品</a>
+            <a href="my-orders.html">我的订单</a>
+            <a href="favorites.html">我的收藏</a>
+            <a href="profile.html">个人中心</a>
+        </div>
+        <div class="user-info">
+            <span id="userName"></span>
+            <span class="credit-score" id="creditScore"></span>
+            <button class="logout-btn" onclick="logout()">退出</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="section-title">我发布的物品</div>
+        <button class="add-btn" onclick="showAddModal()">+ 发布新物品</button>
+        
+        <table id="itemsTable">
+            <thead>
+                <tr><th>物品名称</th><th>日租金</th><th>押金</th><th>状态</th><th>操作</th></tr>
+            </thead>
+            <tbody id="itemsBody"></tbody>
+        </table>
+    </div>
+
+    <!-- 发布物品弹窗 -->
+    <div id="addModal" class="modal">
+        <div class="modal-content">
+            <h3>发布新物品</h3>
+            <input type="text" id="itemName" placeholder="物品名称">
+            <textarea id="itemDesc" placeholder="物品描述" rows="3"></textarea>
+            <input type="number" id="dailyRent" placeholder="日租金 (元)">
+            <input type="number" id="deposit" placeholder="押金 (元)">
+            <input type="text" id="location" placeholder="存放位置">
+            <button onclick="addItem()">发布</button>
+            <button onclick="hideAddModal()">取消</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        let currentUser = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const userStr = localStorage.getItem('user');
+            if (!userStr) { window.location.href = 'login.html'; return; }
+            currentUser = JSON.parse(userStr);
+            document.getElementById('userName').textContent = currentUser.name;
+            document.getElementById('creditScore').textContent = `信用分 ${currentUser.credit_score}`;
+            loadMyItems();
+        });
+
+        async function loadMyItems() {
+            const response = await fetch(`${API_BASE}/my-items/${currentUser.user_id}`);
+            const result = await response.json();
+            if (result.code === 200) {
+                const tbody = document.getElementById('itemsBody');
+                tbody.innerHTML = result.data.map(item => `
+                    <tr>
+                        <td>${item.name}</td>
+                        <td>¥${item.daily_rent}</td>
+                        <td>¥${item.deposit}</td>
+                        <td class="status-${item.status}">${item.status === 'available' ? '可借' : item.status === 'borrowed' ? '已借出' : '已下架'}</td>
+                        <td>${item.status === 'available' ? `<button class="offline-btn" onclick="offlineItem(${item.item_id})">下架</button>` : '-'}</td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        function showAddModal() { document.getElementById('addModal').style.display = 'flex'; }
+        function hideAddModal() { document.getElementById('addModal').style.display = 'none'; }
+
+        async function addItem() {
+            const data = {
+                owner_id: currentUser.user_id,
+                name: document.getElementById('itemName').value,
+                description: document.getElementById('itemDesc').value,
+                daily_rent: parseFloat(document.getElementById('dailyRent').value),
+                deposit: parseFloat(document.getElementById('deposit').value),
+                location: document.getElementById('location').value
+            };
+            const response = await fetch(`${API_BASE}/items`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            if (result.code === 200) {
+                alert('发布成功');
+                hideAddModal();
+                loadMyItems();
+            } else { alert('发布失败'); }
+        }
+
+        async function offlineItem(itemId) {
+            if (confirm('确定下架该物品吗？')) {
+                await fetch(`${API_BASE}/items/${itemId}/offline`, { method: 'PUT' });
+                loadMyItems();
+            }
+        }
+
+        function logout() { localStorage.removeItem('user'); window.location.href = 'login.html'; }
+    </script>
+</body>
+</html>

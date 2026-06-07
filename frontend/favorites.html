@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>我的收藏 - 宿舍好物共享系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', sans-serif; background: #f5f7fa; }
+        .navbar {
+            background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px 30px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .logo { font-size: 20px; font-weight: bold; color: #667eea; }
+        .nav-links a { margin: 0 15px; text-decoration: none; color: #333; }
+        .nav-links a:hover { color: #667eea; }
+        .user-info { display: flex; align-items: center; gap: 15px; }
+        .credit-score { background: #667eea; color: white; padding: 5px 12px; border-radius: 20px; }
+        .logout-btn { background: none; border: 1px solid #ddd; padding: 5px 15px; border-radius: 5px; cursor: pointer; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 30px; }
+        .section-title { font-size: 20px; margin-bottom: 20px; }
+        .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .item-card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .item-name { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
+        .remove-btn { background: #e74c3c; color: white; border: none; padding: 8px; border-radius: 5px; cursor: pointer; margin-top: 10px; width: 100%; }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="logo">宿舍好物共享租借系统</div>
+        <div class="nav-links">
+            <a href="dashboard.html">首页</a>
+            <a href="my-items.html">我的物品</a>
+            <a href="my-orders.html">我的订单</a>
+            <a href="favorites.html">我的收藏</a>
+            <a href="profile.html">个人中心</a>
+        </div>
+        <div class="user-info">
+            <span id="userName"></span>
+            <span class="credit-score" id="creditScore"></span>
+            <button class="logout-btn" onclick="logout()">退出</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="section-title">我的收藏</div>
+        <div class="items-grid" id="favoritesGrid"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        let currentUser = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const userStr = localStorage.getItem('user');
+            if (!userStr) { window.location.href = 'login.html'; return; }
+            currentUser = JSON.parse(userStr);
+            document.getElementById('userName').textContent = currentUser.name;
+            document.getElementById('creditScore').textContent = `信用分 ${currentUser.credit_score}`;
+            loadFavorites();
+        });
+
+        async function loadFavorites() {
+            const response = await fetch(`${API_BASE}/favorites/${currentUser.user_id}`);
+            const result = await response.json();
+            if (result.code === 200) {
+                const grid = document.getElementById('favoritesGrid');
+                if (result.data.length === 0) {
+                    grid.innerHTML = '<div style="text-align:center;padding:50px;">暂无收藏</div>';
+                    return;
+                }
+                grid.innerHTML = result.data.map(item => `
+                    <div class="item-card">
+                        <div class="item-name">${item.name}</div>
+                        <div>物主：${item.owner_name}</div>
+                        <div>日租金：¥${item.daily_rent}</div>
+                        <button class="remove-btn" onclick="removeFavorite(${item.item_id})">取消收藏</button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        async function removeFavorite(itemId) {
+            await fetch(`${API_BASE}/favorites`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: currentUser.user_id, item_id: itemId })
+            });
+            loadFavorites();
+        }
+
+        function logout() { localStorage.removeItem('user'); window.location.href = 'login.html'; }
+    </script>
+</body>
+</html>
