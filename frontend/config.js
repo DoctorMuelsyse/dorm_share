@@ -1,2 +1,2 @@
 // API base URL - change this when backend is deployed
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://dorm-backend-kkg5.onrender.com';
