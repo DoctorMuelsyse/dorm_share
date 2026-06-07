@@ -1,1 +1,4 @@
 .vscode/settings.json
+ngrok*
+dorm_share_dump.sql
+*.zip
